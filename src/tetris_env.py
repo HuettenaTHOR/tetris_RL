@@ -21,6 +21,7 @@ class TetrisEnv(Env):
         self.state = self.tetris.get_board()
 
     def step(self, action):
+        # action space is shape 3: 0: move left, 1: move right, 2: rotate
         action = [0 if x == 0 else 1 for x in action]
         reward, end = self.tetris.player_move(action)
         self.game_length -= 1
@@ -65,10 +66,12 @@ def run():
         done = False
         score = 0
         while not done:
-            # env.render()
+            env.render()
 
             # action = env.action_space.sample()
-            action = [0, 0, 1]
+
+            # action = [0, 0, 1]
+            action = [int(x) for x in input().split(",")]
             n_state, reward, done, info = env.step(action)
             # print(reward)
             score += reward

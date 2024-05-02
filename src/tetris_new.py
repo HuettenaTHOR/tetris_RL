@@ -22,7 +22,7 @@ from copy import deepcopy
 import constants
 
 # DECLARE ALL THE CONSTANTS
-BOARD_SIZE = 8
+BOARD_SIZE = 10
 # Extra two are for the walls, playing area will have size as BOARD_SIZE
 EFF_BOARD_SIZE = BOARD_SIZE + 2
 
@@ -30,20 +30,20 @@ PIECES = [
 
     [[1], [1], [1], [1]],
 
-    [[1, 0],
-     [1, 0],
-     [1, 1]],
-
-    [[0, 1],
-     [0, 1],
-     [1, 1]],
-
-    [[0, 1],
-     [1, 1],
-     [1, 0]],
-
     [[1, 1],
-     [1, 1]]
+     [1, 1]],
+
+    # [[1, 0],
+    #  [1, 0],
+    #  [1, 1]],
+    #
+    # [[0, 1],
+    #  [0, 1],
+    #  [1, 1]],
+    #
+    # [[0, 1],
+    #  [1, 1],
+    #  [1, 0]],
 
 ]
 
@@ -54,6 +54,29 @@ ROTATE_ANTICLOCKWISE = 'w'
 ROTATE_CLOCKWISE = 's'
 NO_MOVE = 'e'
 QUIT_GAME = 'q'
+
+
+def overlap_check(board, curr_piece, piece_pos):
+    """
+    Parameters:
+    -----------
+    board - matrix of the size of the board
+    curr_piece - matrix for the piece active in the game
+    piece_pos - [x,y] co-ordinates of the top-left cell in the piece matrix
+                w.r.t. the board
+
+    Returns:
+    --------
+    True - if piece do not overlap with any other piece or walls
+    False - if piece overlaps with any other piece or board walls
+    """
+    curr_piece_size_x = len(curr_piece)
+    curr_piece_size_y = len(curr_piece[0])
+    for i in range(curr_piece_size_x):
+        for j in range(curr_piece_size_y):
+            if board[piece_pos[0] + i][piece_pos[1] + j] == 1 and curr_piece[i][j] == 1:
+                return False
+    return True
 
 
 class Tetris(object):
@@ -282,6 +305,14 @@ class Tetris(object):
         piece_2 = self.rotate_clockwise(piece_1)
         return self.rotate_clockwise(piece_2)
 
+    def check_block_potential(self, board, curr_piece, piece_pos):
+        t_board = deepcopy(board)
+        t_curr_piece = deepcopy(curr_piece)
+        piece_pos = deepcopy(piece_pos)
+
+    def check_killable_rows(self):
+        pass
+
     def merge_board_and_piece(self, board, curr_piece, piece_pos):
         """
         Parameters:
@@ -303,40 +334,10 @@ class Tetris(object):
         We also remove any filled up rows from the board to continue the gameplay
         as it happends in a tetris game
         """
-        reward = 0
-        lowest_possible = 0
-        for i, row in enumerate(board):
-            if any(x == 0 for x in row):
-                lowest_possible = max(lowest_possible, i)
 
         curr_piece_size_x = len(curr_piece)
         curr_piece_size_y = len(curr_piece[0])
 
-        lowest_block = piece_pos[0] + curr_piece_size_x - 1
-
-        ignore_placement = [
-            [[0, 1],
-             [1, 1],
-             [1, 0]],
-
-            [[1, 1, 0],
-             [0, 1, 1]],
-
-        ]
-
-        bad_placed = any(x == 0 for x in curr_piece[-1]) and not (
-                    curr_piece == ignore_placement[0] or curr_piece == ignore_placement[1])
-
-        amount = self.get_board()[lowest_block - 1].count(2)
-
-        if lowest_possible - lowest_block == 0:
-            reward += 1
-        else:
-            reward -= 2
-            # reward += max((3 + lowest_block - lowest_possible), -4)
-            # reward += amount
-        if bad_placed:
-            reward -= 1
         for i in range(curr_piece_size_x):
             for j in range(curr_piece_size_y):
                 board[piece_pos[0] + i][piece_pos[1] + j] = curr_piece[i][j] | board[piece_pos[0] + i][piece_pos[1] + j]
@@ -368,30 +369,8 @@ class Tetris(object):
         # Add extra empty rows on the top of the board to compensate for deleted rows
         for i in range(filled_rows):
             board.insert(0, empty_row)
-        reward += filled_rows * constants.REWARD
-        return reward
 
-    def overlap_check(self, board, curr_piece, piece_pos):
-        """
-        Parameters:
-        -----------
-        board - matrix of the size of the board
-        curr_piece - matrix for the piece active in the game
-        piece_pos - [x,y] co-ordinates of the top-left cell in the piece matrix
-                    w.r.t. the board
-
-        Returns:
-        --------
-        True - if piece do not overlap with any other piece or walls
-        False - if piece overlaps with any other piece or board walls
-        """
-        curr_piece_size_x = len(curr_piece)
-        curr_piece_size_y = len(curr_piece[0])
-        for i in range(curr_piece_size_x):
-            for j in range(curr_piece_size_y):
-                if board[piece_pos[0] + i][piece_pos[1] + j] == 1 and curr_piece[i][j] == 1:
-                    return False
-        return True
+        return filled_rows
 
     def can_move_left(self, board, curr_piece, piece_pos):
         """
@@ -409,7 +388,7 @@ class Tetris(object):
                 means it will overlap if we move it to the left
         """
         piece_pos = self.get_left_move(piece_pos)
-        return self.overlap_check(board, curr_piece, piece_pos)
+        return overlap_check(board, curr_piece, piece_pos)
 
     def can_move_right(self, board, curr_piece, piece_pos):
         """
@@ -427,7 +406,7 @@ class Tetris(object):
                 means it will overlap if we move it to the right
         """
         piece_pos = self.get_right_move(piece_pos)
-        return self.overlap_check(board, curr_piece, piece_pos)
+        return overlap_check(board, curr_piece, piece_pos)
 
     def can_move_down(self, board, curr_piece, piece_pos):
         """
@@ -444,7 +423,7 @@ class Tetris(object):
         False - if we cannot move the piece to the downward direction
         """
         piece_pos = self.get_down_move(piece_pos)
-        return self.overlap_check(board, curr_piece, piece_pos)
+        return overlap_check(board, curr_piece, piece_pos)
 
     def can_rotate_anticlockwise(self, board, curr_piece, piece_pos):
         """
@@ -462,7 +441,7 @@ class Tetris(object):
                 might happen in case rotating would overlap with any existing piece
         """
         curr_piece = self.rotate_anticlockwise(curr_piece)
-        return self.overlap_check(board, curr_piece, piece_pos)
+        return overlap_check(board, curr_piece, piece_pos)
 
     def can_rotate_clockwise(self, board, curr_piece, piece_pos):
         """
@@ -480,7 +459,7 @@ class Tetris(object):
                 might happen in case rotating would overlap with any existing piece
         """
         curr_piece = self.rotate_clockwise(curr_piece)
-        return self.overlap_check(board, curr_piece, piece_pos)
+        return overlap_check(board, curr_piece, piece_pos)
 
     def reset_game(self):
         self.board = self.init_board()
@@ -517,7 +496,7 @@ class Tetris(object):
                 self.piece_pos = self.get_random_position(self.curr_piece)
             return reward, False
         else:
-            return -1, True
+            return -3, True
         # self.print_board(self.board, self.curr_piece, self.piece_pos)
 
     def run(self):
